@@ -115,6 +115,22 @@ class Config:
         'max_results': 100
     }
     
+    # Health check endpoints
+    HEALTH_CHECK_ENDPOINTS = {
+        'kafka': f"{KAFKA_BOOTSTRAP_SERVERS}/_health",
+        'redis': f"redis://{REDIS_HOST}:{REDIS_PORT}",
+        'postgres': f"postgresql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}",
+        'chroma': f"http://{CHROMA_HOST}:{CHROMA_PORT}/health"
+    }
+    
+    # Monitoring settings
+    PROMETHEUS_PORT = 9090
+    GRAFANA_PORT = 3000
+    
+    # Circuit breaker settings
+    CIRCUIT_BREAKER_THRESHOLD = 5
+    CIRCUIT_BREAKER_TIMEOUT = 60
+    
     @classmethod
     def validate(cls) -> Dict[str, Any]:
         """Validate required configuration settings"""

@@ -71,6 +71,16 @@ class MarketInsightRequest(BaseModel):
     cuisine_type: Optional[str] = None
     competitors: Optional[List[str]] = None
 
+# Add caching for expensive operations
+from fastapi_cache import FastAPICache
+from fastapi_cache.backends.redis import RedisBackend
+from fastapi_cache.decorator import cache
+
+@app.on_event("startup")
+async def startup():
+    redis = aioredis.from_url("redis://localhost", encoding="utf8")
+    FastAPICache.init(RedisBackend(redis), prefix="fastapi-cache")
+
 # API Routes
 @app.get("/")
 def read_root():
@@ -82,7 +92,8 @@ def read_root():
     }
 
 @app.post("/market/analyze")
-def analyze_market(query: LocationQuery):
+@cache(expire=3600)  # Cache for 1 hour
+async def analyze_market(query: LocationQuery):
     """Get market analysis for a location"""
     try:
         insights = market_agent.get_market_insights(

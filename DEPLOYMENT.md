@@ -59,7 +59,7 @@ chmod 400 restaurant-bi-key.pem
 
 # Launch EC2 instance
 aws ec2 run-instances \
-    --image-id ami-XXXXX \  # Replace with latest Ubuntu AMI
+    --image-id ami-0f9575d3d509bae0c \
     --count 1 \
     --instance-type t3.xlarge \
     --key-name restaurant-bi-key \
@@ -74,8 +74,8 @@ aws rds create-db-instance \
     --db-instance-identifier restaurant-bi-db \
     --db-instance-class db.t3.medium \
     --engine postgres \
-    --master-username admin \
-    --master-user-password your_secure_password \
+    --master-username database_admin \
+    --master-user-password Data1234!* \
     --allocated-storage 100
 ```
 

@@ -7,6 +7,7 @@ from kafka import KafkaProducer, KafkaConsumer
 import json
 import logging
 from datetime import datetime
+import time
 from ..config import Config
 from ..llm.insights_generator import InsightsGenerator
 
@@ -30,7 +31,12 @@ class RealtimeProcessor:
         
         self.insights_generator = InsightsGenerator(config)
         
-    def stream_review(self, review_data: Dict) -> bool:
+        self.batch_size = 100
+        self.batch_timeout = 30  # seconds
+        self._batch = []
+        self._last_flush = time.time()
+    
+    async def stream_review(self, review_data: Dict) -> bool:
         """
         Stream a new restaurant review
         
@@ -52,16 +58,32 @@ class RealtimeProcessor:
                 )
                 review_data['ai_insights'] = insights
             
-            # Send to Kafka
-            self.producer.send('restaurant_reviews', review_data)
-            self.producer.flush()
+            # Improved batched streaming with automatic flush
+            self._batch.append(review_data)
             
-            logger.info(f"Successfully streamed review for {review_data['restaurant_name']}")
+            should_flush = (
+                len(self._batch) >= self.batch_size or
+                time.time() - self._last_flush > self.batch_timeout
+            )
+            
+            if should_flush:
+                await self._flush_batch()
+            
             return True
             
         except Exception as e:
             logger.error(f"Error streaming review: {str(e)}")
             return False
+    
+    async def _flush_batch(self):
+        """Flush batched reviews to Kafka"""
+        if not self._batch:
+            return
+            
+        self.producer.send('restaurant_reviews', self._batch)
+        self.producer.flush()
+        self._batch = []
+        self._last_flush = time.time()
     
     def stream_market_update(self, market_data: Dict) -> bool:
         """

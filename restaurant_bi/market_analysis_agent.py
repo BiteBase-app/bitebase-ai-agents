@@ -3,6 +3,8 @@ Restaurant Market Analysis Agent
 Handles data collection and analysis of restaurant market data
 """
 from typing import Dict, List, Optional
+from dataclasses import dataclass
+from typing import TypedDict
 import googlemaps
 from datetime import datetime
 import pandas as pd
