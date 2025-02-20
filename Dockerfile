@@ -26,11 +26,48 @@ RUN apt-get update && \
     liblapack-dev \
     gfortran \
     poppler-utils \
-    libgl1-mesa-glx \
-    && rm -rf /var/lib/apt/lists/*
+    libgl1-mesa-glx && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy requirements file
-COPY requirements.txt .
+COPY # Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    build-essential \
+    curl \
+    git \
+    libpq-dev \
+    pkg-config \
+    gcc \
+    g++ \
+    cmake \
+    python3-dev \
+    libblas-dev \
+    liblapack-dev \
+    gfortran \
+    poppler-utils \
+    libgl1-mesa-glx && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*# Install system dependencies
+    RUN apt-get update && \
+        apt-get install -y --no-install-recommends \
+        build-essential \
+        curl \
+        git \
+        libpq-dev \
+        pkg-config \
+        gcc \
+        g++ \
+        cmake \
+        python3-dev \
+        libblas-dev \
+        liblapack-dev \
+        gfortran \
+        poppler-utils \
+        libgl1-mesa-glx && \
+        apt-get clean && \
+        rm -rf /var/lib/apt/lists/* .
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
