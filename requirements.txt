@@ -86,6 +86,6 @@ flake8
 mypy
 
 # Documentation
-sphinx
-mkdocs
-mkdocs-material
+sphinx==7.2.6
+mkdocs==1.5.3
+mkdocs-material==9.5.3
