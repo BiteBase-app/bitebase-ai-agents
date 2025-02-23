@@ -1,357 +1,297 @@
 # Restaurant BI System API Endpoints
 
-Complete documentation of all available API endpoints. Base URL: `http://your-domain:8080`
+Base URL: `https://api.bitebase.app/agents/v1`
 
-## Market Analysis Endpoints
+## Authentication
+All endpoints require an `Authorization` header:
+```http
+Authorization: Bearer <your_api_token>
+```
 
-### Base Market Analysis
-```
-POST /market/analyze
-```
-Analyze market data for a location
+## Common Response Format
+All endpoints follow a standard response format:
 ```json
 {
-    "lat": 51.5074,
-    "lng": -0.1278,
-    "radius": 5000,
-    "cuisine_type": "italian"
+    "status": "success|error",
+    "data": {},
+    "message": "Optional message",
+    "timestamp": "2024-02-19T06:45:00Z"
 }
 ```
 
-### Restaurant Search
+## Market Analysis Endpoints
+
+### Analyze Market
+```http
+POST /market/analyze
 ```
-POST /search/semantic
-```
-Perform semantic search for restaurants
+Comprehensive market analysis for a location
 ```json
 {
-    "query": "cozy italian restaurant",
-    "filters": {"cuisine": "italian"},
-    "limit": 10
+    "location": {
+        "lat": 51.5074,
+        "lng": -0.1278,
+        "address": "Optional full address"
+    },
+    "parameters": {
+        "radius_meters": 5000,
+        "cuisine_type": "italian",
+        "price_range": ["$$", "$$$"],
+        "include_demographics": true,
+        "include_competition": true
+    },
+    "timeframe": {
+        "start_date": "2024-01-01T00:00:00Z",
+        "end_date": "2024-02-19T00:00:00Z"
+    }
+}
+```
+
+### Search Restaurants
+```http
+POST /restaurants/search
+```
+Advanced semantic search with filtering
+```json
+{
+    "query": {
+        "text": "cozy italian restaurant with outdoor seating",
+        "semantic_boost": 0.7
+    },
+    "filters": {
+        "cuisine": ["italian", "mediterranean"],
+        "price_range": ["$$", "$$$"],
+        "features": ["outdoor_seating", "wheelchair_accessible"],
+        "rating_min": 4.0,
+        "open_now": true
+    },
+    "location": {
+        "lat": 51.5074,
+        "lng": -0.1278,
+        "radius_meters": 5000
+    },
+    "pagination": {
+        "limit": 10,
+        "offset": 0
+    },
+    "sort": {
+        "by": "rating|distance|popularity",
+        "order": "desc"
+    }
 }
 ```
 
 ### Similar Restaurants
+```http
+POST /restaurants/{restaurant_id}/similar
 ```
-POST /restaurants/similar/{restaurant_id}
-```
-Find similar restaurants based on features
-
-### Top Restaurants
-```
-GET /restaurants/top?location={"lat":51.5074,"lng":-0.1278}&limit=10
-```
-Get top-rated restaurants in an area
-
-### Market Heatmap
-```
-GET /market/heatmap
-```
-Generate restaurant density heatmap
+Find similar restaurants with customizable criteria
 ```json
 {
-    "lat": 51.5074,
-    "lng": -0.1278,
-    "radius": 5000
+    "similarity_criteria": {
+        "cuisine_weight": 0.3,
+        "price_weight": 0.2,
+        "location_weight": 0.2,
+        "ambiance_weight": 0.3
+    },
+    "filters": {
+        "min_similarity_score": 0.7,
+        "max_distance_km": 10
+    },
+    "limit": 10
 }
 ```
 
 ## Geospatial Analysis Endpoints
 
-### Restaurant Clusters
+### Analyze Clusters
+```http
+POST /geospatial/clusters
 ```
-POST /geospatial/clusters/analyze
-```
-Analyze restaurant clusters using DBSCAN
+Advanced clustering analysis
 ```json
 {
-    "locations": [{"lat": 51.5074, "lng": -0.1278}],
-    "eps_km": 0.5,
-    "min_samples": 5
+    "analysis_type": "dbscan|kmeans|hierarchical",
+    "parameters": {
+        "eps_km": 0.5,
+        "min_samples": 5,
+        "max_clusters": 10
+    },
+    "locations": [
+        {
+            "lat": 51.5074,
+            "lng": -0.1278,
+            "weight": 1.0,
+            "metadata": {
+                "revenue": 50000,
+                "customer_count": 1000
+            }
+        }
+    ],
+    "include_demographics": true,
+    "visualization_format": "geojson|h3|svg"
 }
 ```
 
-### Price Heatmap
+### Generate Heatmap
+```http
+POST /geospatial/heatmap
 ```
-POST /geospatial/prices/heatmap
-```
-Generate price heatmap using H3 hexagons
+Customizable heatmap generation
 ```json
 {
-    "restaurants": [...],
-    "center": {"lat": 51.5074, "lng": -0.1278},
-    "zoom": 12
-}
-```
-
-### Population Analysis
-```
-POST /geospatial/population/analyze
-```
-Analyze population impact on restaurant success
-```json
-{
-    "location": {"lat": 51.5074, "lng": -0.1278},
-    "radius_km": 1.0
-}
-```
-
-### Growth Prediction
-```
-POST /geospatial/growth/predict
-```
-Predict future restaurant growth zones
-```json
-{
-    "historical_data": [...],
-    "prediction_days": 365
+    "type": "density|price|popularity|revenue",
+    "parameters": {
+        "resolution": 8,
+        "smoothing_factor": 0.5,
+        "color_scheme": "viridis"
+    },
+    "bounds": {
+        "north": 51.5074,
+        "south": 51.4074,
+        "east": -0.1178,
+        "west": -0.1378
+    },
+    "filters": {
+        "min_value": 0,
+        "max_value": 100,
+        "exclude_outliers": true
+    },
+    "output_format": "geojson|png|svg"
 }
 ```
 
 ## Dynamic Pricing Endpoints
 
 ### Optimize Price
-```
+```http
 POST /pricing/optimize
 ```
-Get optimal price prediction
+AI-driven price optimization
 ```json
 {
-    "customer_count": 50,
-    "competition_density": 3,
-    "avg_income": 75000,
-    "peak_hour": true,
-    "weekend": false
-}
-```
-
-### Dynamic Price
-```
-POST /pricing/dynamic
-```
-Get dynamic price adjustment
-```json
-{
-    "base_price": 15.99,
-    "current_demand": 75,
-    "time_of_day": 18,
-    "day_of_week": 5,
-    "special_events": ["concert", "game_day"]
-}
-```
-
-## Customer Engagement Endpoints
-
-### Handle Message
-```
-POST /bot/message
-```
-Handle customer message and generate response
-```json
-{
-    "customer_id": "cust_123",
-    "message": "What's good near me?",
-    "location": {"lat": 51.5074, "lng": -0.1278},
-    "phone_number": "+1234567890"
-}
-```
-
-### Process Activity
-```
-POST /bot/activity
-```
-Process customer activity for engagement
-```json
-{
-    "customer_id": "cust_123",
-    "activity_type": "location_update",
-    "activity_data": {
-        "location": {"lat": 51.5074, "lng": -0.1278},
-        "timestamp": "2024-02-19T12:00:00Z"
+    "restaurant_data": {
+        "id": "rest_123",
+        "current_prices": {
+            "item_1": 15.99,
+            "item_2": 12.99
+        },
+        "costs": {
+            "item_1": 5.50,
+            "item_2": 4.20
+        }
+    },
+    "market_conditions": {
+        "customer_count": 50,
+        "competition_density": 3,
+        "avg_income": 75000,
+        "events_nearby": ["concert", "game_day"]
+    },
+    "time_factors": {
+        "peak_hour": true,
+        "weekend": false,
+        "season": "summer"
+    },
+    "optimization_goals": {
+        "revenue_weight": 0.6,
+        "volume_weight": 0.4,
+        "min_margin_percent": 20
     }
 }
 ```
 
-## Advanced Analytics Endpoints
+## Analytics Endpoints
 
-### POS Insights
+### Menu Performance
+```http
+POST /analytics/menu
 ```
-POST /advanced/pos/insights
-```
-Get insights from POS data
+Comprehensive menu analysis
 ```json
 {
     "restaurant_id": "rest_123",
-    "start_date": "2024-01-01T00:00:00Z",
-    "end_date": "2024-02-19T00:00:00Z"
+    "timeframe": {
+        "start_date": "2024-01-01T00:00:00Z",
+        "end_date": "2024-02-19T00:00:00Z",
+        "compare_to_previous": true
+    },
+    "analysis_types": [
+        "item_performance",
+        "category_analysis",
+        "price_elasticity",
+        "cross_selling",
+        "daypart_analysis"
+    ],
+    "metrics": [
+        "revenue",
+        "profit_margin",
+        "order_frequency",
+        "customer_satisfaction"
+    ],
+    "segmentation": {
+        "by_daypart": true,
+        "by_customer_type": true,
+        "by_season": true
+    }
 }
 ```
 
-### Emotion Analysis
+### Customer Analytics
+```http
+POST /analytics/customers
 ```
-POST /advanced/emotions/analyze
-```
-Analyze customer emotions from feedback
-```json
-{
-    "texts": [
-        "Great service!",
-        "Food was cold"
-    ]
-}
-```
-
-### Migration Tracking
-```
-POST /advanced/customers/migration
-```
-Track customer migration patterns
-```json
-{
-    "restaurant_id": "rest_123",
-    "timeframe_days": 90
-}
-```
-
-### Demand Forecast
-```
-POST /advanced/demand/forecast
-```
-Generate demand forecast
+Advanced customer behavior analysis
 ```json
 {
     "restaurant_id": "rest_123",
-    "forecast_days": 30
-}
-```
-
-### Menu Performance Analysis
-```
-POST /advanced/menu/performance
-```
-Analyze menu performance including costs and profitability
-```json
-{
-    "restaurant_id": "rest_123",
-    "start_date": "2024-01-01T00:00:00Z",
-    "end_date": "2024-02-19T00:00:00Z"
-}
-```
-Response includes:
-- Top and low performing dishes
-- Food cost analysis
-- Seasonal trends
-- Pricing recommendations
-- Category performance
-
-### Staff Efficiency Analysis
-```
-POST /advanced/staff/efficiency
-```
-Analyze staff performance and scheduling optimization
-```json
-{
-    "restaurant_id": "rest_123",
-    "start_date": "2024-01-01T00:00:00Z",
-    "end_date": "2024-02-19T00:00:00Z"
-}
-```
-Response includes:
-- Individual staff metrics
-- Peak hour analysis
-- Labor cost efficiency
-- Scheduling recommendations
-- Performance trends
-
-### Customer Recommendations
-```
-POST /advanced/customers/recommendations
-```
-Get personalized customer recommendations
-```json
-{
-    "customer_id": "cust_123"
-}
-```
-
-## Social Media Analysis Endpoints
-
-### Analyze Social Data
-```
-POST /social/analyze
-```
-Get comprehensive social media analysis
-```json
-{
-    "restaurant_name": "Restaurant Name",
-    "days_back": 30,
-    "limit": 100
-}
-```
-
-### Sentiment Analysis
-```
-POST /social/sentiment
-```
-Analyze text sentiment
-```json
-{
-    "texts": [
-        "Great atmosphere and service!",
-        "Will never come back here again"
-    ]
-}
-```
-
-### Trend Detection
-```
-POST /social/trends
-```
-Detect trending topics
-```json
-{
-    "texts": [...],
-    "min_topics": 3,
-    "max_topics": 10
-}
-```
-
-### Social Graph
-```
-POST /social/graph
-```
-Build social knowledge graph
-```json
-{
-    "restaurant_name": "Restaurant Name",
-    "social_data": [...]
+    "analysis_types": [
+        "segmentation",
+        "lifetime_value",
+        "churn_risk",
+        "preference_analysis"
+    ],
+    "timeframe": {
+        "start_date": "2024-01-01T00:00:00Z",
+        "end_date": "2024-02-19T00:00:00Z"
+    },
+    "segmentation_criteria": {
+        "visit_frequency": true,
+        "spending_patterns": true,
+        "menu_preferences": true,
+        "demographic": true
+    }
 }
 ```
 
 ## Streaming Endpoints
 
-### Stream Review
+### Real-time Analytics Stream
+```http
+GET /stream/analytics
 ```
-POST /stream/review
-```
-Stream a new restaurant review
+WebSocket connection for real-time analytics
 ```json
 {
-    "restaurant_name": "Restaurant Name",
-    "review_text": "Amazing food!",
-    "rating": 5,
-    "source": "google"
+    "subscriptions": [
+        "orders",
+        "revenue",
+        "customer_feedback",
+        "kitchen_status"
+    ],
+    "aggregation_interval": "1m",
+    "filters": {
+        "min_order_value": 10,
+        "locations": ["loc_123", "loc_124"]
+    }
 }
 ```
 
-## Health Check
-```
-GET /
-```
-API health check endpoint
-```json
-{
-    "status": "healthy",
-    "version": "1.0.0",
-    "timestamp": "2024-02-19T06:45:00Z"
-}
+## Rate Limits
+- Free tier: 1000 requests/day
+- Professional tier: 10000 requests/day
+- Enterprise tier: Unlimited
+
+## Versioning
+- Current version: v1
+- Deprecation notice: 6 months
+- Legacy version support: 12 months
