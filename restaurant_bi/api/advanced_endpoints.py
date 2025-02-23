@@ -8,6 +8,8 @@ from datetime import datetime, timedelta
 import logging
 
 from ..analytics.advanced_analytics import AdvancedAnalytics
+from ..analytics.menu_analytics import MenuAnalytics
+from ..analytics.staff_analytics import StaffAnalytics
 from ..config import Config
 
 # Initialize logging
@@ -19,6 +21,8 @@ router = APIRouter(prefix="/advanced", tags=["advanced"])
 # Initialize components
 config = Config()
 analytics = AdvancedAnalytics(config)
+menu_analytics = MenuAnalytics(config)
+staff_analytics = StaffAnalytics(config)
 
 # Pydantic models
 class POSRequest(BaseModel):
@@ -40,7 +44,57 @@ class ForecastRequest(BaseModel):
 class RecommendationRequest(BaseModel):
     customer_id: str
 
+class MenuAnalysisRequest(BaseModel):
+    restaurant_id: str
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
+class StaffAnalysisRequest(BaseModel):
+    restaurant_id: str
+    start_date: Optional[datetime] = None
+    end_date: Optional[datetime] = None
+
 # API Routes
+@router.post("/menu/performance")
+def analyze_menu_performance(request: MenuAnalysisRequest):
+    """Analyze menu performance including costs and profitability"""
+    try:
+        date_range = None
+        if request.start_date and request.end_date:
+            date_range = (request.start_date, request.end_date)
+            
+        analysis = menu_analytics.analyze_menu_performance(
+            restaurant_id=request.restaurant_id,
+            date_range=date_range
+        )
+        return analysis
+    except Exception as e:
+        logger.error(f"Error analyzing menu performance: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={"message": str(e), "timestamp": datetime.now().isoformat()}
+        )
+
+@router.post("/staff/efficiency")
+def analyze_staff_efficiency(request: StaffAnalysisRequest):
+    """Analyze staff performance and efficiency metrics"""
+    try:
+        date_range = None
+        if request.start_date and request.end_date:
+            date_range = (request.start_date, request.end_date)
+            
+        analysis = staff_analytics.analyze_staff_efficiency(
+            restaurant_id=request.restaurant_id,
+            date_range=date_range
+        )
+        return analysis
+    except Exception as e:
+        logger.error(f"Error analyzing staff efficiency: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail={"message": str(e), "timestamp": datetime.now().isoformat()}
+        )
+
 @router.post("/pos/insights")
 def get_pos_insights(request: POSRequest):
     """Get insights from POS data"""

@@ -1,7 +1,7 @@
 # API and HTTP
 googlemaps
 requests
-fastapi
+fastapi>=0.95.2
 uvicorn
 beautifulsoup4
 scrapy
@@ -9,11 +9,10 @@ selenium
 snscrape
 
 # Data Processing
-pandas
-numpy
+pandas>=1.3.0
+numpy>=1.21.0
 scikit-learn
-spacy
-sentence-transformers
+sentence-transformers>=2.2.0
 torch
 transformers
 prophet
@@ -28,8 +27,8 @@ statsmodels
 # Database
 sqlalchemy
 psycopg2-binary
-python-dotenv
-chromadb
+python-dotenv>=0.19.0
+faiss-cpu
 neo4j
 
 # Vector Search & LLM
@@ -38,6 +37,7 @@ faiss-cpu
 openai
 tiktoken
 llama-index
+chromadb
 
 # Streaming & Message Queue
 kafka-python
@@ -45,13 +45,13 @@ confluent-kafka
 
 # Geospatial & Mapping
 h3
-geopy
+geopy>=2.3.0
 geopandas
 osmnx
 shapely
 rtree
 networkx
-folium
+folium>=0.12.0
 
 # Visualization
 matplotlib
@@ -86,6 +86,7 @@ flake8
 mypy
 
 # Documentation
-sphinx==7.2.6
-mkdocs==1.5.3
-mkdocs-material==9.5.3
+sphinx
+mkdocs
+mkdocs-material
+pydantic>=1.8.2

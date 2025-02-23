@@ -1,153 +1,82 @@
 """
-Vector storage and semantic search implementation using ChromaDB and Sentence-BERT
+Restaurant Embedding Store using FAISS
 """
 from typing import List, Dict, Optional
-import chromadb
-from chromadb.config import Settings
+import faiss
+import numpy as np
 from sentence_transformers import SentenceTransformer
-import json
-from datetime import datetime
+import pickle
+import os
 
 class RestaurantEmbeddingStore:
-    """Manages restaurant data embeddings and semantic search"""
-    
-    def __init__(self, persist_directory: str = "./data/chroma"):
-        """
-        Initialize the embedding store
-        
-        Args:
-            persist_directory: Directory to persist ChromaDB data
-        """
-        self.client = chromadb.Client(Settings(
-            persist_directory=persist_directory,
-            anonymized_telemetry=False
-        ))
-        
-        # Initialize Sentence-BERT model
+    def __init__(self, index_path: str = "./data/embeddings"):
+        """Initialize FAISS index and sentence transformer"""
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
+        self.index_path = index_path
+        self.data_path = os.path.join(index_path, "metadata.pkl")
         
-        # Create or get collections
-        self.restaurant_collection = self.client.get_or_create_collection(
-            name="restaurant_data",
-            metadata={"description": "Restaurant information and reviews"}
-        )
+        # Create directory if it doesn't exist
+        os.makedirs(index_path, exist_ok=True)
         
+        # Initialize or load FAISS index
+        self.dimension = 384  # Dimension of sentence-transformers embeddings
+        if os.path.exists(os.path.join(index_path, "index.faiss")):
+            self.index = faiss.read_index(os.path.join(index_path, "index.faiss"))
+            with open(self.data_path, 'rb') as f:
+                self.metadata = pickle.load(f)
+        else:
+            self.index = faiss.IndexFlatL2(self.dimension)
+            self.metadata = []
+
     def add_restaurants(self, restaurants: List[Dict]) -> None:
-        """
-        Add restaurant data to the vector store
-        
-        Args:
-            restaurants: List of restaurant dictionaries
-        """
+        """Add restaurant data to the vector store"""
+        if not restaurants:
+            return
+            
+        # Create document texts
         documents = []
-        metadatas = []
-        ids = []
-        
         for restaurant in restaurants:
-            # Create a combined text representation for embedding
-            text_content = f"{restaurant['name']} - {' '.join(restaurant.get('categories', []))}"
-            if 'reviews' in restaurant:
-                text_content += f" Reviews: {restaurant['reviews']}"
-                
-            # Store complete restaurant data in metadata
-            metadata = {
-                'name': restaurant['name'],
-                'rating': restaurant.get('rating'),
-                'price_level': restaurant.get('price_level'),
-                'categories': json.dumps(restaurant.get('categories', [])),
-                'source': restaurant.get('source', 'unknown'),
-                'added_at': datetime.now().isoformat()
-            }
-            
-            documents.append(text_content)
-            metadatas.append(metadata)
-            ids.append(f"restaurant_{hash(restaurant['name'] + text_content)}")
-            
-        # Generate embeddings and add to ChromaDB
-        self.restaurant_collection.add(
-            documents=documents,
-            metadatas=metadatas,
-            ids=ids
-        )
+            doc_text = f"{restaurant.get('name', '')} {restaurant.get('formatted_address', '')} "
+            doc_text += f"Rating: {restaurant.get('rating', 'N/A')} "
+            if 'price_level' in restaurant:
+                doc_text += f"Price Level: {'$' * restaurant['price_level']} "
+            documents.append(doc_text)
         
+        # Generate embeddings
+        embeddings = self.model.encode(documents)
+        
+        # Add to FAISS index
+        self.index.add(embeddings.astype('float32'))
+        self.metadata.extend(restaurants)
+        
+        # Save index and metadata
+        faiss.write_index(self.index, os.path.join(self.index_path, "index.faiss"))
+        with open(self.data_path, 'wb') as f:
+            pickle.dump(self.metadata, f)
+
     def semantic_search(
-        self, 
-        query: str, 
+        self,
+        query: str,
         n_results: int = 10,
         filter_criteria: Optional[Dict] = None
     ) -> List[Dict]:
-        """
-        Perform semantic search on restaurant data
+        """Search for restaurants using semantic similarity"""
+        # Generate query embedding
+        query_embedding = self.model.encode([query])[0].astype('float32').reshape(1, -1)
         
-        Args:
-            query: Search query string
-            n_results: Number of results to return
-            filter_criteria: Optional filtering criteria
-            
-        Returns:
-            List of matching restaurant dictionaries
-        """
-        # Convert natural language query to embedding
-        query_embedding = self.model.encode(query)
+        # Search in FAISS index
+        distances, indices = self.index.search(query_embedding, n_results)
         
-        # Prepare filter if provided
-        where_clause = None
-        if filter_criteria:
-            where_clause = {}
-            if 'min_rating' in filter_criteria:
-                where_clause["rating"] = {"$gte": filter_criteria['min_rating']}
-            if 'price_level' in filter_criteria:
-                where_clause["price_level"] = filter_criteria['price_level']
-        
-        # Perform search
-        results = self.restaurant_collection.query(
-            query_embeddings=[query_embedding.tolist()],
-            n_results=n_results,
-            where=where_clause
-        )
-        
-        # Format results
-        formatted_results = []
-        for idx, metadata in enumerate(results['metadatas'][0]):
-            result = {
-                'name': metadata['name'],
-                'rating': metadata.get('rating'),
-                'price_level': metadata.get('price_level'),
-                'categories': json.loads(metadata.get('categories', '[]')),
-                'source': metadata.get('source'),
-                'relevance_score': results['distances'][0][idx],
-                'matched_text': results['documents'][0][idx]
-            }
-            formatted_results.append(result)
-            
-        return formatted_results
-    
-    def get_similar_restaurants(
-        self, 
-        restaurant_name: str,
-        n_results: int = 5
-    ) -> List[Dict]:
-        """
-        Find similar restaurants based on name and description
-        
-        Args:
-            restaurant_name: Name of the restaurant to find similar ones for
-            n_results: Number of similar restaurants to return
-            
-        Returns:
-            List of similar restaurant dictionaries
-        """
-        # First, try to find the exact restaurant
-        results = self.restaurant_collection.query(
-            query_texts=[restaurant_name],
-            n_results=1
-        )
-        
-        if not results['documents'][0]:
-            return []
-            
-        # Use the full text content to find similar restaurants
-        return self.semantic_search(
-            results['documents'][0][0],
-            n_results=n_results + 1  # Add 1 to account for the query restaurant
-        )[1:]  # Exclude the first result (the query restaurant)
+        # Get metadata for results
+        results = []
+        for idx in indices[0]:
+            if idx < len(self.metadata):
+                result = self.metadata[idx]
+                # Apply filters if specified
+                if filter_criteria:
+                    if 'min_rating' in filter_criteria:
+                        if result.get('rating', 0) < filter_criteria['min_rating']:
+                            continue
+                results.append(result)
+                
+        return results

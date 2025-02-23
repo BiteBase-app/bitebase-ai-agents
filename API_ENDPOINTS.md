@@ -225,6 +225,44 @@ Generate demand forecast
 }
 ```
 
+### Menu Performance Analysis
+```
+POST /advanced/menu/performance
+```
+Analyze menu performance including costs and profitability
+```json
+{
+    "restaurant_id": "rest_123",
+    "start_date": "2024-01-01T00:00:00Z",
+    "end_date": "2024-02-19T00:00:00Z"
+}
+```
+Response includes:
+- Top and low performing dishes
+- Food cost analysis
+- Seasonal trends
+- Pricing recommendations
+- Category performance
+
+### Staff Efficiency Analysis
+```
+POST /advanced/staff/efficiency
+```
+Analyze staff performance and scheduling optimization
+```json
+{
+    "restaurant_id": "rest_123",
+    "start_date": "2024-01-01T00:00:00Z",
+    "end_date": "2024-02-19T00:00:00Z"
+}
+```
+Response includes:
+- Individual staff metrics
+- Peak hour analysis
+- Labor cost efficiency
+- Scheduling recommendations
+- Performance trends
+
 ### Customer Recommendations
 ```
 POST /advanced/customers/recommendations

@@ -5,13 +5,12 @@ Handles data collection and analysis of restaurant market data
 from typing import Dict, List, Optional
 from dataclasses import dataclass
 from typing import TypedDict
-import googlemaps
+from geopy.geocoders import Nominatim
 from datetime import datetime
 import pandas as pd
 import numpy as np
 import folium
 from .config import Config
-from .scrapers.restaurant_scraper import RestaurantScraper
 from .vectorstore.embedding_store import RestaurantEmbeddingStore
 
 class RestaurantMarketAnalysisAgent:
@@ -21,12 +20,18 @@ class RestaurantMarketAnalysisAgent:
         """Initialize the agent with necessary API clients"""
         self.config = Config()
         self.config.validate()
-        self.gmaps = googlemaps.Client(key=self.config.GOOGLE_MAPS_API_KEY)
+        self.geolocator = Nominatim(user_agent="restaurant_bi")
         
-        # Initialize scraper and vector store
-        self.scraper = RestaurantScraper(self.config)
+        # Initialize vector store (using sentence-transformers under the hood)
         self.vector_store = RestaurantEmbeddingStore()
         
+        # Initialize Google Maps client if API key is available
+        if hasattr(self.config, 'GOOGLE_MAPS_API_KEY'):
+            import googlemaps
+            self.gmaps = googlemaps.Client(key=self.config.GOOGLE_MAPS_API_KEY)
+        else:
+            self.gmaps = None
+            
         self.cached_data = {}
 
     def search_restaurants(
@@ -49,61 +54,34 @@ class RestaurantMarketAnalysisAgent:
         radius = radius or self.config.DEFAULT_SEARCH_RADIUS
         
         try:
+            if not self.gmaps:
+                return []
+
             places_result = self.gmaps.places_nearby(
                 location=f"{location['lat']},{location['lng']}",
                 radius=radius,
                 keyword=keyword
             )
-
+                
             restaurants = places_result.get('results', [])
             
-            # Get location string for Yelp scraping
-            location = self._get_location_string(location)
-            
-            # Scrape additional data from Yelp
-            yelp_data = self.scraper.scrape_yelp(location)
-            yelp_data = self.scraper.clean_data(yelp_data)
-            
-            # Store all data in vector database
-            self.vector_store.add_restaurants(yelp_data)
-            
-            # Combine Google Maps and scraped data
-            combined_results = []
+            # Get detailed data for each restaurant
             detailed_results = []
             for restaurant in restaurants:
-                details = self.gmaps.place(restaurant['place_id'], 
-                    fields=['name', 'rating', 'user_ratings_total', 
-                           'price_level', 'formatted_address', 
-                           'opening_hours', 'reviews'])
-                detailed_results.append(details['result'])
-                
-                # Find similar restaurants in scraped data
-                similar = self.vector_store.get_similar_restaurants(
-                    restaurant['name'],
-                    n_results=1
-                )
-                
-                if similar:
-                    # Merge data from both sources
-                    merged = details['result']
-                    yelp_data = similar[0]
-                    
-                    # Update with Yelp data if available
-                    if 'rating' not in merged and 'rating' in yelp_data:
-                        merged['rating'] = yelp_data['rating']
-                    if 'reviews' not in merged and 'review_count' in yelp_data:
-                        merged['reviews'] = yelp_data['review_count']
-                    if 'price_level' not in merged and 'price_level' in yelp_data:
-                        merged['price_level'] = yelp_data['price_level']
-                    
-                    combined_results.append(merged)
-                else:
-                    combined_results.append(details['result'])
+                try:
+                    details = self.gmaps.place(restaurant['place_id'],
+                        fields=['name', 'rating', 'user_ratings_total',
+                               'price_level', 'formatted_address',
+                               'opening_hours', 'reviews'])
+                    detailed_results.append(details['result'])
+                except Exception as e:
+                    print(f"Error getting details for {restaurant['name']}: {str(e)}")
+                    continue
             
-            # Store combined results in vector database
-            self.vector_store.add_restaurants(combined_results)
+            # Store detailed results in vector database
+            self.vector_store.add_restaurants(detailed_results)
             
-            return combined_results
+            return detailed_results
             
         except Exception as e:
             print(f"Error fetching restaurant data: {str(e)}")
